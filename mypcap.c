@@ -2,8 +2,8 @@
     CS-455  Advanced Computer Networking
     Simplified Packet Analysis Programming Projects
     Designed By:        Dr. Mohamed Aboutabl  (c) 2026
-    
-    Implemented By:    Shea Parcell
+
+    Implemented By:    Shea Parcell and Adam Bergen
     File Name:          mypcap.c
 
 ---------------------------------------------------------------------------*/
@@ -39,12 +39,12 @@ void cleanUp( )
 }
 
 /*-------------------------------------------------------------------------*/
-/*  Open the input PCAP file 'fname' 
+/*  Open the input PCAP file 'fname'
     and read its global header into buffer 'p'
-    Side effects:    
+    Side effects:
         - Set the global FILE *pcapInput to the just-opened file
         - Properly set the global flags: bytesOK  and   microSec
-        - If necessary, reorder the bytes of all globap PCAP header 
+        - If necessary, reorder the bytes of all globap PCAP header
           fields except for the magic_number
 
     Remember to check for incuming NULL pointers
@@ -66,9 +66,9 @@ int readPCAPhdr( char *fname , pcap_hdr_t *p)
     //read input into the golbal header
     if(fread(p, sizeof(pcap_hdr_t), 1, pcapInput) != 1) {
         return -1;
-    }  
+    }
 
-    bytesOK = true; 
+    bytesOK = true;
     microSec = true;
 
     if (p->magic_number == 0xd4c3b2a1){
@@ -93,7 +93,7 @@ int readPCAPhdr( char *fname , pcap_hdr_t *p)
         p->network = htonl(p->network);
     }
     // Determine the capturer's byte ordering
-    // Issue: magic_number could also be 0xa1b23c4D to indicate nano-second 
+    // Issue: magic_number could also be 0xa1b23c4D to indicate nano-second
     // resolution instead of microseconds. This affects the interpretation
     // of the ts_usec field in each packet's header.
 
@@ -101,9 +101,9 @@ int readPCAPhdr( char *fname , pcap_hdr_t *p)
 
 /*-------------------------------------------------------------------------*/
 /* Print the global header of the PCAP file from buffer 'p'                */
-void printPCAPhdr( const pcap_hdr_t *p ) 
+void printPCAPhdr( const pcap_hdr_t *p )
 {
-    printf("magic number %X\n", p->magic_number );    
+    printf("magic number %X\n", p->magic_number );
     printf("major version %d\n", p->version_major);
     printf("minor version %d\n", p->version_minor);
     printf("GMT to local correction %d seconds\n", p->thiszone);
@@ -114,12 +114,12 @@ void printPCAPhdr( const pcap_hdr_t *p )
 }
 
 /*-------------------------------------------------------------------------*/
-/*  Read the next packet (Header and entire ethernet frame) 
+/*  Read the next packet (Header and entire ethernet frame)
     from the previously-opened input  PCAP file 'pcapInput'
     Must check for incoming NULL pointers and incomplete frame payload
-    
-    If this is the very first packet from the PCAP file, set the baseTime 
-    
+
+    If this is the very first packet from the PCAP file, set the baseTime
+
     Returns true on success, or false on failure for any reason */
 
 bool getNextPacket( packetHdr_t *p , uint8_t  ethFrame[]  )
@@ -132,9 +132,9 @@ bool getNextPacket( packetHdr_t *p , uint8_t  ethFrame[]  )
     if (fread(p, sizeof(packetHdr_t), 1, pcapInput) != 1){
         return false;
     }
-    // Did the capturer use a different 
+    // Did the capturer use a different
     // byte-ordering than mine (as determined by the magic number)?
-    if( ! bytesOK )   
+    if( ! bytesOK )
     {
         p->ts_sec = htonl(p->ts_sec);
         p->ts_usec = htonl(p->ts_usec);
@@ -148,7 +148,7 @@ bool getNextPacket( packetHdr_t *p , uint8_t  ethFrame[]  )
         return false;
     }
 
-    // If necessary, set the baseTime .. Pay attention to possibility of nano second 
+    // If necessary, set the baseTime .. Pay attention to possibility of nano second
     // time precision (instead of micro seconds )
 
     double pktTime = p->ts_sec;
@@ -164,7 +164,7 @@ bool getNextPacket( packetHdr_t *p , uint8_t  ethFrame[]  )
         baseTime = pktTime;
         baseTimeSet = true;
     }
-    
+
     return true ;
 }
 
@@ -190,17 +190,53 @@ void printPacketMetaData( const packetHdr_t *p  )
 
 /*-------------------------------------------------------------------------*/
 /* Print the packet's captured data starting with its ethernet frame header
-   and moving up the protocol hierarchy */ 
+   and moving up the protocol hierarchy */
 
 void printPacket( const etherHdr_t *frPtr )
 {
     // Missing Code Here
     // print Source/Destination MAC addresses
-    char src[18], dst[18];
-    macToStr(frPtr->eth_srcMAC, src);
-    macToStr(frPtr->eth_dstMAC, dst);
+    char src[20], dst[20];
+    uint16_t eth_type = ntohs(frPtr->eth_type);
+    if (eth_type == PROTO_ARP)
+    {
+        macToStr(frPtr->eth_srcMAC, src);
+        macToStr(frPtr->eth_dstMAC, dst);
+        printf("%-20s %-20s %-8s ", src, dst, "ARP");
+    }
+    else if (eth_type == PROTO_IPv4)
+    {
+        ipv4Hdr_t *ip = (ipv4Hdr_t *)((uint8_t)frPtr + ETHERNETHLEN * 2 + 2);
+        ipToStr(ip->ip_srcIP, src);
+        ipToStr(ip->ip_dstIP, dst);
 
-    printf("%-20s %-20s ", src, dst);
+        char *protoStr = "IP";
+        if (ip->ip_proto == PROTO_ICMP)
+        {
+            protoStr = "ICMP";
+        }
+        else if (ip->ip_proto == PROTO_TCP)
+        {
+            protoStr = "TCP";
+        }
+        else if (ip->ip_proto == PROTO_UDP)
+        {
+            protoStr = "UDP";
+        }
+        printf("%-20s %-20s %-8s ", src, dst, protoStr);
+
+        printIPinfo(ip);
+        if (ip->ip_proto == PROTO_ICMP)
+        {
+            uint8_t ihl = ip->ip_verHlen & 0x0f;
+            icmpHdr_t *icmp = (icmpHdr_t *)((uint8_t *)ip +(ihl * 4));
+            printICMPinfo(icmp);
+
+            uint16_t totalLen = ntohs(ip->ip_totLen);
+            unsigned appDataLen = totalLen - (ihl * 4) - 8;
+            printf(" AppData=%5u", appDataLen);
+        }
+    }
 
 }
 
@@ -211,15 +247,18 @@ void printPacket( const etherHdr_t *frPtr )
 
 
 /*-------------------------------------------------------------------------*/
-/*  Convert a MAC address to the format xx:xx:xx:xx:xx:xx 
+/*  Convert a MAC address to the format xx:xx:xx:xx:xx:xx
     in the caller-provided 'buf' whose maximum 'size' is given
     Returns 'buf'  */
 
 char *macToStr( const uint8_t *p , char *buf )
 {
-    // Missing Code Here
     sprintf(buf, "%02x:%02x:%02x:%02x:%02x:%02x", p[0], p[1], p[2], p[3], p[4], p[5]);
     return buf;
 }
 
-
+char *ipToStr( const IPv4addr ip , char *ipStr )
+{
+    sprintf(ipStr, "%u.%u.%u.%u", ip.byte[0], ip.byte[1], ip.byte[2], ip.byte[3]);
+    return ipStr;
+}

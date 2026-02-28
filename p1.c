@@ -2,8 +2,8 @@
     CS-455  Advanced Computer Networking
     Simplified Packet Analysis Programming Projects
     Designed By:        Dr. Mohamed Aboutabl  (c) 2026
-    
-    Implemented By:     Shea Parcell
+
+    Implemented By:     Shea Parcell and Adam Bergen
     File Name:          p1.c
 
 ---------------------------------------------------------------------------*/
@@ -25,7 +25,7 @@ int main( int argc  , char *argv[] )
     packetHdr_t  pktHdr  ;
     uint8_t      ethFrame[MAXFRAMESZ] ;
     etherHdr_t  *frameHdrPtr = (etherHdr_t  *) ethFrame ;
-    
+
     if ( argc < 2 )
     {
         usage( argv[0] ) ;
@@ -42,16 +42,16 @@ int main( int argc  , char *argv[] )
         errorExit("Failed to read global header from the PCAP file");
     }
     // Print the global header of the pcap filer
-    // using printPCAPhdr() 
+    // using printPCAPhdr()
     printPCAPhdr(&pcapHdr);
     // Missing Code
 
     // Print labels before any packets are printed
     puts("") ;
     printf("%6s %14s %6s / %6s %-20s %-20s %8s %s\n" ,
-           "PktNum" , "Time Stamp" , "OrgLen" , "Captrd"  , 
+           "PktNum" , "Time Stamp" , "OrgLen" , "Captrd"  ,
            "Source" , "Destination" , "Protocol" , "info");
-    
+
     // Read one packet at a time
     while (getNextPacket(&pktHdr, ethFrame))
     {
@@ -59,8 +59,7 @@ int main( int argc  , char *argv[] )
         printPacket(frameHdrPtr);
         puts("");
     }
-    
-    printf("\nReached end of PCAP file '%s'\n" , pcapIn ) ;
-    cleanUp() ;    
-}
 
+    printf("\nReached end of PCAP file '%s'\n" , pcapIn ) ;
+    cleanUp() ;
+}

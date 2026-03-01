@@ -226,19 +226,25 @@ void printPacket( const etherHdr_t *frPtr )
         {
             protoStr = "UDP";
         }
+        // printf("%-20s", src);
+        //         printf("%-20s", dst);
         printf("%-20s %-20s %-8s ", src, dst, protoStr);
 
         printIPinfo(ip);
+        uint8_t ihl = ip->ip_verHlen & 0x0f;
         if (ip->ip_proto == PROTO_ICMP)
         {
-            uint8_t ihl = ip->ip_verHlen & 0x0f;
+
             icmpHdr_t *icmp = (icmpHdr_t *)((uint8_t *)ip +(ihl * 4));
             printICMPinfo(icmp);
 
-            uint16_t totalLen = ntohs(ip->ip_totLen);
-            unsigned appDataLen = totalLen - (ihl * 4) - 8;
-            printf(" AppData=%5u", appDataLen);
+            // uint16_t totalLen = ntohs(ip->ip_totLen);
+            // unsigned appDataLen = totalLen - (ihl * 4) - 8;
+            // printf(" AppData=%5u", appDataLen);
         }
+        uint16_t totalLen = ntohs(ip->ip_totLen);
+        unsigned appDataLen = totalLen - (ihl * 4) - 8;
+        printf(" AppData=%5u", appDataLen);
     }
 
 }
@@ -267,11 +273,29 @@ void printARPinfo( const arpMsg_t  *arp)
 }
 
 
-void      printIPinfo ( const ipv4Hdr_t * ) {
+void printIPinfo ( const ipv4Hdr_t *ip) {
+    // HLen is last 4 bits of ip_verHlen
+    uint8_t len = (ip->ip_verHlen & 0x0F) * 4;
+    uint8_t optionLen = len - 20;
+    printf("IP_HDR{ Len=%u incl. %u options bytes} ", len, optionLen);
 
 }
-unsigned  printICMPinfo( const icmpHdr_t * ) {
+unsigned  printICMPinfo( const icmpHdr_t *icmp) {
+    //Example of output: ICMP_HDR{ Echo Request :id= 3457, seq=    1} AppData=   56
 
+    if(icmp->icmp_type == 0){
+                printf("ICMP_HDR{ Echo Reply   ");
+
+    } 
+    else if (icmp->icmp_type == 8)
+    {
+        printf("ICMP_HDR{ Echo Request ");
+    }
+    uint16_t id  = ntohs(*(uint16_t*)&icmp->icmp_line2[0]);
+    printf(":id= %u,", id);
+
+    uint16_t seq = ntohs(*(uint16_t*)&icmp->icmp_line2[2]);
+    printf(" seq=    %u}", seq);
 }
 
 

@@ -203,10 +203,13 @@ void printPacket( const etherHdr_t *frPtr )
         macToStr(frPtr->eth_srcMAC, src);
         macToStr(frPtr->eth_dstMAC, dst);
         printf("%-20s %-20s %-8s ", src, dst, "ARP");
+
+        arpMsg_t *arp = (arpMsg_t *)((uint8_t *)frPtr + ETHERNETHLEN);
+        printARPinfo(arp);
     }
     else if (eth_type == PROTO_IPv4)
     {
-        ipv4Hdr_t *ip = (ipv4Hdr_t *)((uint8_t)frPtr + ETHERNETHLEN * 2 + 2);
+        ipv4Hdr_t *ip = (ipv4Hdr_t *)((uint8_t *)frPtr + ETHERNETHLEN * 2 + 2); 
         ipToStr(ip->ip_srcIP, src);
         ipToStr(ip->ip_dstIP, dst);
 
@@ -239,6 +242,32 @@ void printPacket( const etherHdr_t *frPtr )
     }
 
 }
+
+/*
+
+PROJECT 1 METHODS
+
+*/
+
+void printARPinfo( const arpMsg_t  *arp) 
+{
+    uint16_t op = ntohs(arp->arp_oper);
+
+    char sip[20], tip[20], smac[20];
+    ipToStr(arp->arp_spa, sip);
+    ipToStr(arp->arp_tpa, tip);
+    macToStr(arp->arp_tha, smac);
+
+    if (op == 1)   // request
+        printf("Who has %s ? Tell %s", tip, sip);
+    else if (op == 2)   // reply
+        printf("%s is at %s", sip, smac);
+}
+
+
+void      printIPinfo ( const ipv4Hdr_t * ) ;
+unsigned  printICMPinfo( const icmpHdr_t * ) ;
+
 
 
 /*-------------------------------------------------------------------------*/

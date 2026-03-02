@@ -231,20 +231,21 @@ void printPacket( const etherHdr_t *frPtr )
         printf("%-20s %-20s %-8s ", src, dst, protoStr);
 
         printIPinfo(ip);
-        uint8_t ihl = ip->ip_verHlen & 0x0f;
+
         if (ip->ip_proto == PROTO_ICMP)
         {
-
+            uint8_t ihl = ip->ip_verHlen & 0x0f;
             icmpHdr_t *icmp = (icmpHdr_t *)((uint8_t *)ip +(ihl * 4));
             printICMPinfo(icmp);
 
-            // uint16_t totalLen = ntohs(ip->ip_totLen);
-            // unsigned appDataLen = totalLen - (ihl * 4) - 8;
-            // printf(" AppData=%5u", appDataLen);
+            uint16_t totalLen = ntohs(ip->ip_totLen);
+            unsigned appDataLen = totalLen - (ihl * 4) - 8;
+            printf(" AppData=%5u", appDataLen);
         }
-        uint16_t totalLen = ntohs(ip->ip_totLen);
-        unsigned appDataLen = totalLen - (ihl * 4) - 8;
-        printf(" AppData=%5u", appDataLen);
+        else{
+        printf("AppData=    0");
+        }
+
     }
 
 }
@@ -292,7 +293,7 @@ unsigned  printICMPinfo( const icmpHdr_t *icmp) {
         printf("ICMP_HDR{ Echo Request ");
     }
     uint16_t id  = ntohs(*(uint16_t*)&icmp->icmp_line2[0]);
-    printf(":id= %u,", id);
+    printf(":id=%5u,", id);
 
     uint16_t seq = ntohs(*(uint16_t*)&icmp->icmp_line2[2]);
     printf(" seq=    %u}", seq);
